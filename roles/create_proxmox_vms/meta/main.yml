@@ -1,0 +1,22 @@
+---
+galaxy_info:
+  author: Josh Noll
+
+  description: Create Proxmox VMs from a template
+
+  license: MIT
+
+  min_ansible_version: 2.16.9
+
+  galaxy_tags:
+    - homelab
+    - tailscale
+    - ubuntu
+    - fedora
+    - infrastructure
+    - linux
+    - baseline
+    - proxmox
+
+dependencies: []
+...

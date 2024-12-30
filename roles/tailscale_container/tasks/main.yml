@@ -1,0 +1,155 @@
+---
+- name: Stop play if both tailscale_container_serve_port and tailscale_container_no_serve are defined
+  ansible.builtin.fail:
+    msg: Both tailscale_container_serve_port cannot be defined while tailscale_container_no_serve is true
+  when: tailscale_container_serve_port is defined and tailscale_container_no_serve is true
+
+- name: Ensure tailscale serve directory exists
+  become: true
+  ansible.builtin.file:
+    path: /home/{{ ansible_user }}/{{ tailscale_container_service_name }}/ts-serve-config
+    owner: "{{ ansible_user }}"
+    group: docker
+    state: directory
+    mode: '0751'
+  when: tailscale_container_no_serve is false
+
+- name: Prepare serve config file
+  when: tailscale_container_serve_port is defined
+  block:
+    - name: Copy tailscale serve config file to server
+      ansible.builtin.copy:
+        src: "{{ tailscale_container_serve_config }}"
+        dest: /home/{{ ansible_user }}/{{ tailscale_container_service_name }}/ts-serve-config/{{ tailscale_container_serve_config }}
+        mode: '0664'
+
+    - name: Add port to serve config file
+      ansible.builtin.lineinfile:
+        backrefs: true
+        regexp: '^(\s*"Proxy": "http://127\.0\.0\.1:)(\s*)(")'
+        line: '\g<1>{{ tailscale_container_serve_port }}\g<3>'
+        path: /home/{{ ansible_user }}/{{ tailscale_container_service_name }}/ts-serve-config/{{ tailscale_container_serve_config }}
+        state: present
+
+    - name: Add https+insecure to serve config file
+      ansible.builtin.lineinfile:
+        backrefs: true
+        regexp: '^(\s*)("Proxy": "http://)(127\.0\.0\.1:\d*")$'
+        line: '\g<1>"Proxy": "https+insecure://\g<3>'
+        path: /home/{{ ansible_user }}/{{ tailscale_container_service_name }}/ts-serve-config/serve-config.json
+        state: present
+      when: tailscale_container_https_container is true
+
+- name: Remove tailscale serve config file from server
+  ansible.builtin.file:
+    path: /home/{{ ansible_user }}/{{ tailscale_container_service_name }}/ts-serve-config/{{ tailscale_container_serve_config }}
+    state: absent
+  when: tailscale_container_no_serve is true
+
+- name: Add funnel option to serve config file
+  ansible.builtin.blockinfile:
+    path: /home/{{ ansible_user }}/{{ tailscale_container_service_name }}/ts-serve-config/serve-config.json
+    insertbefore: '^\}\s*$'
+    marker: ""
+    block: |2
+      ,
+      "AllowFunnel": {
+        "${TS_CERT_DOMAIN}:443": true
+      }
+  when: tailscale_container_public is true
+
+# NOTE: The below option for funnel config works, however, keeping the "AllowFunnel"
+# option anywhere in the serve-config file will cause the Tailscale admin console to reflect the
+# device as using Funnel and being exposed to the internet (even if it isn't)
+#
+# When tailscale fixes this bug, I will revert to using this lineinfile task rather than the blockinfile task
+#
+# - name: Add funnel option to serve config file
+#   lineinfile:
+#     backrefs: true
+#     regexp: '^(\s*)("\$\{TS_CERT_DOMAIN\}:443": )'
+#     line: '\g<1>\g<2>true'
+#     path: /home/{{ ansible_user }}/{{ tailscale_container_service_name }}/ts-serve-config/serve-config.json
+#     state: present
+#   when: tailscale_container_public is true
+
+- name: Pull image and deploy tailscale container [WITH SERVE CONFIG]
+  community.docker.docker_container:
+    name: ts-{{ tailscale_container_service_name }}
+    image: tailscale/tailscale:stable
+    pull: always
+    hostname: "{{ tailscale_container_service_name }}"
+    restart_policy: unless-stopped
+    state: started
+    env:
+      TS_AUTHKEY: "{{ tailscale_container_oauth_client_secret }}?ephemeral=false"
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_EXTRA_ARGS: --advertise-tags=tag:containers {{ tailscale_container_extra_args }}
+      TS_SERVE_CONFIG: /config/{{ tailscale_container_serve_config }}
+      TS_USERSPACE: "{{ tailscale_container_userspace_networking }}"
+      TS_ACCEPT_DNS: "true"
+    volumes:
+      - /home/{{ ansible_user }}/{{ tailscale_container_service_name }}/tailscale:/var/lib/tailscale
+      - /home/{{ ansible_user }}/{{ tailscale_container_service_name }}/ts-serve-config:/config
+      - /dev/net/tun:/dev/net/tun
+    capabilities:
+      - net_admin
+      - sys_module
+  when: tailscale_container_no_serve is false
+  register: sidecar_serve
+
+- name: Pull image and deploy tailscale container [NO SERVE CONFIG]
+  community.docker.docker_container:
+    name: ts-{{ tailscale_container_service_name }}
+    image: tailscale/tailscale:stable
+    pull: always
+    hostname: "{{ tailscale_container_service_name }}"
+    restart_policy: unless-stopped
+    state: started
+    env:
+      TS_AUTHKEY: "{{ tailscale_container_oauth_client_secret }}?ephemeral=false"
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_EXTRA_ARGS: --advertise-tags=tag:containers {{ tailscale_container_extra_args }}
+      TS_USERSPACE: "{{ tailscale_container_userspace_networking }}"
+      TS_ACCEPT_DNS: "true"
+    volumes:
+      - /home/{{ ansible_user }}/{{ tailscale_container_service_name }}/tailscale:/var/lib/tailscale
+      - /home/{{ ansible_user }}/{{ tailscale_container_service_name }}/ts-serve-config:/config
+      - /dev/net/tun:/dev/net/tun
+    capabilities:
+      - net_admin
+      - sys_module
+  when: tailscale_container_no_serve is true
+  register: sidecar_noserve
+
+- name: Wait for tailscale container to come up
+  ansible.builtin.pause:
+    seconds: 15
+  when: sidecar_serve.changed or sidecar_noserve.changed
+
+- name: Look up tailscale IP address
+  ansible.builtin.command: dig @100.100.100.100 +short {{ tailscale_container_service_name }}.{{ tailscale_container_tailnet_name }}
+  register: output
+  changed_when: false
+
+- name: Store tailscale IP address in variable
+  ansible.builtin.set_fact:
+    tailscale_container_ip_address: "{{ output.stdout }}"
+
+- name: Pull image and deploy container
+  community.docker.docker_container:
+    name: "{{ tailscale_container_service_name }}"
+    image: "{{ tailscale_container_image }}:{{ tailscale_container_tag }}"
+    pull: "{{ tailscale_container_pull_image }}"
+    image_name_mismatch: recreate
+    state: started
+    restart_policy: unless-stopped
+    user: "{{ tailscale_container_user | default(omit) }}"
+    volumes: "{{ tailscale_container_volumes | default(omit) }}"
+    env: "{{ tailscale_container_env_vars | default(omit) }}"
+    labels: "{{ tailscale_container_labels | default(omit) }}"
+    command: "{{ tailscale_container_commands | default(omit) }}"
+    network_mode: container:ts-{{ tailscale_container_service_name }}
+    comparisons:
+      '*': strict
+...

@@ -1,0 +1,45 @@
+---
+namespace: joshrnoll
+
+name: homelab
+
+version: 2.0.11
+
+readme: README.md
+
+authors:
+- Josh Noll https://joshrnoll.com
+
+description: A collection of automation roles for my homelab, based around [Tailscale](https://tailscale.com) networking.
+
+license:
+- MIT
+
+tags: 
+  - automation
+  - homelab
+  - tailscale
+  - docker
+  - ubuntu
+  - fedora
+  - server
+  - tools
+  - networking
+
+dependencies:
+  community.general: '>=8.6.3'
+  community.docker: '>=3.12.1'
+
+repository: https://github.com/joshrnoll/ansible-collection-homelab
+
+documentation: https://github.com/joshrnoll/ansible-collection-homelab
+
+homepage: http://joshrnoll.com
+
+issues: https://github.com/joshrnoll/ansible-collection-homelab/issues
+
+build_ignore:
+  - tests
+  - /roles/*/tests
+  - '*.tar.gz'
+...
