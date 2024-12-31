@@ -1,4 +1,12 @@
 ---
+server_baseline_debian_packages_default:
+  - curl
+  - nano
+  - vim
+  - git
+  - ufw
+  - cifs-utils
+
 server_baseline_ubuntu_packages_default:
   - curl
   - nano
@@ -25,6 +33,8 @@ server_baseline_proxmox_packages_default:
   - python3-requests
 
 supported_distributions:
+  - linuxmint
+  - LMDE
   - Debian
   - Ubuntu
   - Fedora

@@ -8,7 +8,7 @@ This role makes a baseline configuration for linux servers. The following config
 - Update apt/dnf and ensure a list of default packages are present
 - Install any additional desired system packages
 - Configure default deny on the firewall, allowing SSH connections* 
-- Install and bring up [Tailscale](https://tailscale.com). For more info, see the tailscale [README](../../tailscale-info/README.md).
+#- Install and bring up [Tailscale](https://tailscale.com). For more info, see the tailscale [README](../../tailscale-info/README.md).
 
 *Not executed on Proxmox hosts
 
@@ -19,15 +19,15 @@ Requirements
 - As of the latest update, the only tested and supported operating systems are **Ubuntu 22.04**, **Fedora 40** and **Proxmox 8**. Other versions may work but have not been tested.
 
 #### Tailscale Oauth client secret
-- You will need a [Tailscale](https://tailscale.com) account and an [Oauth client](https://tailscale.com/kb/1215/oauth-clients) secret. See the tailscale [README](../../tailscale-info/README.md) for more info.
+#- You will need a [Tailscale](https://tailscale.com) account and an [Oauth client](https://tailscale.com/kb/1215/oauth-clients) secret. See the tailscale [README](../../tailscale-info/README.md) for more info.
 
 Role Variables
 --------------
 #### Required Variables
 Not providing these variables will cause the task to fail.
 ```YAML
-server_baseline_server_baseline_created_username: <your-username> # Enter the user you wish to create with sudo privileges.
-server_baseline_tailscale_oauth_client_secret: <your-tailscale-oauth-client-secret> # Your Tailscale Oauth client. It is recommended to store this in dictionary format like the example provided.
+server_baseline_server_baseline_created_username: ansible # Enter the user you wish to create with sudo privileges.
+#server_baseline_tailscale_oauth_client_secret: <your-tailscale-oauth-client-secret> # Your Tailscale Oauth client. It is recommended to store this in dictionary format like the example provided.
 server_baseline_timezone: <server-timezone> # Timezone to set on the server 
 ```
 
@@ -36,7 +36,7 @@ server_baseline_timezone: <server-timezone> # Timezone to set on the server
 ```YAML
 # Task will fail if these are not provided
 server_baseline_server_baseline_created_username: josh
-server_baseline_tailscale_oauth_client_secret: "{{ tailscale_servers_oauth_client['secret] }}" # From Ansible vault - must be stored as dict value!
+#server_baseline_tailscale_oauth_client_secret: "{{ tailscale_servers_oauth_client['secret] }}" # From Ansible vault - must be stored as dict value!
 server_baseline_timezone: America/New_York
 ```
 
@@ -45,6 +45,7 @@ server_baseline_timezone: America/New_York
 Use the below variables to install additional packages (beyond the below listed defaults) on the desired hosts.
 
 ```YAML
+server_baseline_debian_packages: # Any additional packages you would like installed beyond defaults.
 server_baseline_fedora_packages: # Any additional packages you would like installed beyond defaults. 
 server_baseline_ubuntu_packages: # Any additional packages you would like installed beyond defaults.
 server_baseline_proxmox_packages: # Any additional packages you would like installed beyond defaults.
@@ -52,6 +53,10 @@ server_baseline_proxmox_packages: # Any additional packages you would like insta
 
 #### Examples - Optional Variables
 ```YAML
+server_baseline_debian_packages:
+  - aptitude
+  - borgbackup
+  - tmux
 server_baseline_fedora_packages: 
   - borgbackup
   - tmux
@@ -65,6 +70,13 @@ server_baseline_proxmox_packages:
 ```
 
 #### Default Packages Installed by Distro
+**Debian:**
+  - curl
+  - nano
+  - vim
+  - git
+  - ufw
+  - cifs-utils
 
 **Ubuntu:**
   - curl
@@ -97,12 +109,12 @@ Dependencies
 ------------
 
 #### artis3n.tailscale
-- This role relies on the [artis3n.tailscale](https://github.com/artis3n/ansible-role-tailscale) role. Because this role is a member of a collection, and artis3n.tailscale is a standalone role, it **will not be installed automatically as a dependency.** 
-- Run the following command to install:
-
-```bash
-ansible-galaxy role install artis3n.tailscale
-```
+#- This role relies on the [artis3n.tailscale](https://github.com/artis3n/ansible-role-tailscale) role. Because this role is a member of a collection, and artis3n.tailscale is a standalone role, it **will not be installed automatically as a dependency.** 
+#- Run the following command to install:
+#
+#```bash
+#ansible-galaxy role install artis3n.tailscale
+#```
 
 Example Playbook
 ----------------

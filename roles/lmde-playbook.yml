@@ -1,0 +1,30 @@
+---
+- name: Initial setup for LMDE desktops
+  hosts: desktops
+
+  tasks:
+    - name: Include variables from Ansible vault file
+      include_vars: secrets.yml
+
+    - name: Server baseline
+      include_role:
+        name: server_baseline
+      vars:
+        server_baseline_created_username: "{{ ansible_uid }}"
+        server_baseline_timezone: America/New_York
+        server_baseline_debian_packages:
+          - borgbackup
+          - aptitude
+          - tmux
+            #server_baseline_ubuntu_packages:
+            #- borgbackup
+            #- aptitude
+            #- tmux
+            #server_baseline_fedora_packages:
+            #- borgbackup
+            #- tmux
+            #server_baseline_proxmox_packages:
+            #- aptitude
+            #- tmux
+...
+

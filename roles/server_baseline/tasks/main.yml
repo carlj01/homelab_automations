@@ -3,7 +3,7 @@
   ansible.builtin.assert:
     that:
       - server_baseline_created_username is defined
-      - server_baseline_tailscale_oauth_client_secret is defined
+#      - server_baseline_tailscale_oauth_client_secret is defined
     fail_msg: "One or more required variables are missing. See https://github.com/joshrnoll/ansible-collection-homelab/tree/main/roles/server_baseline"
     quiet: true
 
@@ -17,6 +17,14 @@
   ansible.builtin.set_fact:
     include_proxmox: true
   when: ansible_facts['virtualization_role'] == "host" and ansible_facts['distribution'] == "Debian"
+
+- name: Server baseline for LMDE machines
+  ansible.builtin.include_tasks: debian.yml
+  when: ansible_facts['distribution'] == "LMDE"
+
+- name: Server baseline for Debian machines
+  ansible.builtin.include_tasks: debian.yml
+  when: ansible_facts['distribution'] == "Debian"
 
 - name: Server baseline for Ubuntu machines
   ansible.builtin.include_tasks: ubuntu.yml
